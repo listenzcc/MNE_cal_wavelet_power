@@ -2,15 +2,17 @@
 
 import functools
 import mne
+from mne.time_frequency import tfr_morlet
 import os
+import pickle
 import time
 
 
 def time_it(fn):
 
     @functools.wraps(fn)
-    #########################
     def new_fn(*args, **kws):
+        print('-' * 60)
         start = time.time()
         result = fn(*args, **kws)
         end = time.time()
@@ -64,3 +66,20 @@ def get_epochs(fname, event_id, tmin, t0, tmax,
                         picks=picks, baseline=baseline,
                         reject=reject, preload=True)
     return epochs
+
+
+@time_it
+def get_tfr_power(epochs, freqs, n_cycles,
+                  return_itc=False, n_jobs=12):
+    power = tfr_morlet(epochs, freqs=freqs, n_cycles=n_cycles,
+                       return_itc=return_itc, n_jobs=n_jobs)
+    return power
+
+
+@time_it
+def save_file(obj, path):
+    # pickle can not use 'with open(..) as f'
+    # do not know why
+    f = open(path+'.pkl', 'wb')
+    pickle.dump(obj, f)
+    f.close()
