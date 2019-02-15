@@ -28,12 +28,21 @@ for fname in fname_list:
     induces = epochs.copy()
     induces.subtract_evoked()
 
-    power_orts = dict()
     for id in event_id.keys():
         print(id)
-        power_orts[id] = get_tfr_power(
-            induces[id], freqs=freqs, n_cycles=n_cycles,
+        power_orts_epochs = list(get_tfr_power(
+            epochs[id][j], freqs=freqs, n_cycles=n_cycles,
             return_itc=False, n_jobs=n_jobs)
-        # power_orts[id].plot_joint(fmax=max(freqs), show=False)
-    save_file(power_orts, os.path.join(
-        dir_save, subject_name+'_'+os.path.basename(fname)))
+            for j in range(epochs[id].events.shape[0]))
+        power_orts_induces = list(get_tfr_power(
+            induces[id][j], freqs=freqs, n_cycles=n_cycles,
+            return_itc=False, n_jobs=n_jobs)
+            for j in range(induces[id].events.shape[0]))
+
+        save_file(power_orts_epochs, os.path.join(dir_save, '_'.join(
+            ['epochs', subject_name, os.path.basename(fname), id])))
+        save_file(power_orts_induces, os.path.join(dir_save, '_'.join(
+            ['induces', subject_name, os.path.basename(fname), id])))
+
+        break
+    break

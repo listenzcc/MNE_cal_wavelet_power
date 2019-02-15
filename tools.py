@@ -80,6 +80,19 @@ def get_tfr_power(epochs, freqs, n_cycles,
 def save_file(obj, path):
     # pickle can not use 'with open(..) as f'
     # do not know why
-    f = open(path+'.pkl', 'wb')
+
+    def legal_path(path):
+        if not path.endswith('.pkl'):
+            path += '.pkl'
+        if not os.path.exists(os.path.dirname(path)):
+            print('%s does not exist, mkdir.' %
+                  os.path.dirname(path))
+            os.mkdir(os.path.dirname(path))
+        return path
+
+    path = legal_path(path)
+    print('Touch %s' % path)
+    f = open(path, 'wb')
     pickle.dump(obj, f)
     f.close()
+    print('%s pickled.' % path)
