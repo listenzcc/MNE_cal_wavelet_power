@@ -81,6 +81,7 @@ def save_file(obj, path):
     # pickle can not use 'with open(..) as f'
     # do not know why
 
+    # make sure path is legal
     def legal_path(path):
         if not path.endswith('.pkl'):
             path += '.pkl'
@@ -96,3 +97,13 @@ def save_file(obj, path):
     pickle.dump(obj, f)
     f.close()
     print('%s pickled.' % path)
+
+
+@time_it
+def load_file(path):
+    print('Loading %s' % path)
+    f = open(path, 'rb')
+    obj = pickle.load(f)
+    f.close()
+    print('%s loaded.' % path)
+    return obj
