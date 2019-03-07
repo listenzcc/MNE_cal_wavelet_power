@@ -16,57 +16,30 @@ fname_list, ortids, event_id, tmin, t0, tmax = para_setting(
     os.path.join(file_dir, subject_name))
 dir_save = 'data_storage_'
 
-# load data from file
-print('\n'.join(fname_list))
-epochs_all = []
-for j, fname in enumerate(fname_list):
+data_collection_run_epochs = dict()
+for fname in fname_list:
     print(fname)
-    epochs = load_file(os.path.join(dir_save, '_'.join(
-        ['epochs', subject_name, os.path.basename(fname)])+'.pkl'))
-    epochs_all.append(epochs)
+    data_collection_run_epochs[fname] = dict()
+    for ort in event_id.keys():
+        power_epochs = load_file(os.path.join(dir_save, '_'.join(
+            ['power_epochs', subject_name, os.path.basename(fname), ort]) +
+            '.pkl'))
+        data_collection_run_epochs[fname][ort] = np.concatenate(tuple(
+            power_epochs[j].data[np.newaxis, :, :, :]
+            for j in range(len(power_epochs))))
 
-print('\n'.join(fname_list))
-induces_all = []
-for j, fname in enumerate(fname_list):
-    print(fname)
-    induces = load_file(os.path.join(dir_save, '_'.join(
-        ['induces', subject_name, os.path.basename(fname)])+'.pkl'))
-    induces_all.append(induces)
-
-
-def zscore_on_baseline(data):
-    # return data  # uncomment this line to bypass zscore_on_baseline
-    # assert data.shape == (12, 306, 1001)
-    # make sure of it
-    # remove baseline using -150(50) ~ -50(150)ms
-    # return baseline removed data
-    mean = np.mean(data[:, :, 50:150])
-    std = np.std(data[:, :, 50:150])
-    data -= mean
-    data /= std
-    return data
-
-
-# data_collection storages data from mne struct
 data_collection_epochs = dict()
-for ort in event_id:
+for ort in event_id.keys():
     print(ort)
     data_collection_epochs[ort] = np.concatenate(tuple(
-        zscore_on_baseline(epochs_all[e][ort].get_data())
-        for e in range(5)), axis=0)
-
-data_collection_induces = dict()
-for ort in event_id:
-    print(ort)
-    data_collection_induces[ort] = np.concatenate(tuple(
-        zscore_on_baseline(induces_all[e][ort].get_data())
-        for e in range(5)), axis=0)
+        data_collection_run_epochs[fn][ort] for fn in fname_list))
 
 
 def random_fetch(data_col):
     # make sure data_col is deepcopy of data_collection
     # seperate training and testing data randomly
-    # data_col[ort] is numpy.array 12 x 306 x 1001
+    # data_col[ort] is numpy.array 60 x 306 x 20 x 1001
+    # !!! 20: frequencies, first mean this dimension
     # mean each 12 trails to make supertrail as sample
     # return training / testing, data / label
 
@@ -76,9 +49,11 @@ def random_fetch(data_col):
     for j, ort in enumerate(event_id):
         # print('%d:' % j, ort)
         data = data_col[ort]
+        data = np.nanmean(data, axis=2)
         np.random.shuffle(data)
+        print(len(data))
         mean_sample[j] = np.concatenate(
-            tuple(np.mean(data[(j*12):(j*12+12)], axis=0, keepdims=True)
+            tuple(np.nanmean(data[(j*12):(j*12+12)], axis=0, keepdims=True)
                   for j in range(5)))
         # print(mean_sample[j].shape)
         label_mean_sample[j] = np.zeros(5) + j+1
@@ -130,24 +105,11 @@ for rep in range(repeat):
         X, X_ = train_data[:, :, tp], test_data[:, :, tp]
         accuracy_epochs[rep, tp] = train_and_test(X, y, X_, y_)
 
-accuracy_induces = np.zeros([repeat, time_point])
-for rep in range(repeat):
-    print('%d:' % rep)
-    train_data, train_label, test_data, test_label = random_fetch(
-        deepcopy(data_collection_induces))
-    y, y_ = train_label, test_label
-    for tp in range(time_point):
-        X, X_ = train_data[:, :, tp], test_data[:, :, tp]
-        accuracy_induces[rep, tp] = train_and_test(X, y, X_, y_)
-
-path_on_save = os.path.join('result_storage_', 'timedomain')
+path_on_save = os.path.join('result_storage_', 'freqdomain')
 if not os.path.exists(path_on_save):
     os.mkdir(path_on_save)
 np.save(os.path.join(path_on_save, 'accuracy_epochs.npy'),
         accuracy_epochs)
-np.save(os.path.join(path_on_save, 'accuracy_induces.npy'),
-        accuracy_induces)
 
 plt.plot(np.mean(accuracy_epochs, axis=0))
-plt.plot(np.mean(accuracy_induces, axis=0))
 plt.show()
